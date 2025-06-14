@@ -5,9 +5,9 @@ const streamifier = require('streamifier'); // ✅ Needed for memory buffer stre
 // ✅ Upload APK directly to Cloudinary from memory
 exports.uploadApk = async (req, res) => {
   try {
-    const { name, key, expiresAt, loaderType } = req.body;
+    const { name, key, expiresAt, loaderType,telegramLink } = req.body;
 
-    if (!loaderType || !name || !key || !expiresAt || !req.file) {
+    if (!loaderType || !key || !expiresAt || !req.file) {
       return res.status(400).json({ error: 'All fields including loaderType and file are required' });
     }
 
@@ -36,18 +36,26 @@ exports.uploadApk = async (req, res) => {
     let apk = await Apk.findOne({ loaderType });
 
     if (apk) {
-      apk.name = name;
-      apk.key = key;
-      apk.expiresAt = expiresAt;
+      apk.name = name || apk.name;
+      apk.key = key || apk.key;
+      apk.expiresAt = expiresAt || apk.expiresAt;
+      apk.telegramLink = telegramLink || apk.telegramLink;
       apk.fileUrl = result.secure_url;
       await apk.save();
       return res.json({ message: 'APK updated successfully', apk });
     } else {
+
+      if (!name || !telegramLink) {
+        return res.status(400).json({
+          error: 'Name and Telegram link are required for new uploads',
+        });
+      }
       const newApk = new Apk({
         loaderType,
         name,
         key,
         expiresAt,
+        telegramLink,
         fileUrl: result.secure_url
       });
       await newApk.save();

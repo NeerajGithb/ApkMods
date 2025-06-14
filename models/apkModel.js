@@ -6,10 +6,17 @@ const apkSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  name: String,
+  name: {
+    type:String,
+    required: false,
+  },
   key: String,
   fileUrl: String,
   expiresAt: Date,
+  telegramLink: {
+    type: String,
+    required: false,
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Apk', apkSchema);
