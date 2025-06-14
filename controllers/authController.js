@@ -105,7 +105,7 @@ exports.signout = async (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'None',
     });
-
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
 exports.getMe = async (req, res) => {
