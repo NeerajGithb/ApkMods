@@ -71,7 +71,7 @@ exports.uploadApk = async (req, res) => {
 // ✅ Get latest uploaded APK
 exports.getLatestApk = async (req, res) => {
   try {
-    const apk = await Apk.findOne().sort({ createdAt: -1 });
+    const apk = await Apk.find().sort({ createdAt: -1 });
     if (!apk) return res.status(404).json({ message: 'No APK found' });
     res.status(200).json(apk);
   } catch (err) {
