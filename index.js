@@ -4,12 +4,11 @@ const path = require("path");
 const helmet = require('helmet');
 const cors = require('cors');
 const mongoose = require('mongoose');
-
-const apkRouter = require('./routers/apkRoutes'); // ✅ Only this is needed
+const pingRoute = require('./routers/ping');
+const apkRouter = require('./routers/apkRoutes');
 
 const app = express();
 
-// ✅ No credentials since no cookies/tokens are sent
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -25,8 +24,11 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Database connected'))
   .catch((err) => console.log(err));
 
-// ✅ Only use the apk routes
 app.use('/api/apks', apkRouter);
+
+
+app.use('/api/ping', pingRoute);
+
 
 app.get('/', (req, res) => {
   res.json({ message: 'Hello from the server' });
