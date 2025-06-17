@@ -1,66 +1,73 @@
 const { cloudinary } = require('../config/cloudinary');
 const Apk = require('../models/apkModel');
-const streamifier = require('streamifier'); // ✅ Needed for memory buffer stream
+const streamifier = require('streamifier');
 
-// ✅ Upload APK directly to Cloudinary from memory
+// 📦 Upload buffer to Cloudinary
+const streamUpload = (buffer, loaderType) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'raw',
+        folder: 'apk_uploads',
+        public_id: loaderType,
+        overwrite: true,
+      },
+      (error, result) => {
+        if (result) resolve(result);
+        else reject(error);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
+
+// ✅ Upload or update APK
 exports.uploadApk = async (req, res) => {
   try {
-    const { name, key, expiresAt, loaderType,telegramLink } = req.body;
+    const { name, key, expiresAt, loaderType, telegramLink } = req.body;
 
-    if (!loaderType || !key || !expiresAt || !req.file) {
-      return res.status(400).json({ error: 'All fields including loaderType and file are required' });
+    if (!loaderType) {
+      return res.status(400).json({ error: 'loaderType must be provided' });
     }
 
-    // ✅ Convert memory buffer to stream and upload
-    const streamUpload = (buffer) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: "raw",
-            folder: "apk_uploads",
-            public_id: loaderType,  // 👈 Ensures overwrite per loader
-            overwrite: true         // 👈 Forces Cloudinary to replace
-          },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          }
-        );
-        streamifier.createReadStream(buffer).pipe(stream);
-      });
-    };
-
-    const result = await streamUpload(req.file.buffer);
-
-    // ✅ Save or update the DB entry
     let apk = await Apk.findOne({ loaderType });
 
+    // 🛠 Update existing APK
     if (apk) {
+      if (req.file) {
+        const result = await streamUpload(req.file.buffer, loaderType);
+        apk.fileUrl = result.secure_url;
+      }
+
       apk.name = name || apk.name;
       apk.key = key || apk.key;
       apk.expiresAt = expiresAt || apk.expiresAt;
       apk.telegramLink = telegramLink || apk.telegramLink;
-      apk.fileUrl = result.secure_url;
+
       await apk.save();
       return res.json({ message: 'APK updated successfully', apk });
-    } else {
-
-      if (!name || !telegramLink) {
-        return res.status(400).json({
-          error: 'Name and Telegram link are required for new uploads',
-        });
-      }
-      const newApk = new Apk({
-        loaderType,
-        name,
-        key,
-        expiresAt,
-        telegramLink,
-        fileUrl: result.secure_url
-      });
-      await newApk.save();
-      return res.status(201).json({ message: 'APK uploaded successfully', apk: newApk });
     }
+
+    // ➕ New APK
+    if (!name || !key || !expiresAt || !req.file) {
+      return res.status(400).json({
+        error: 'Name, key, expiresAt, and APK file are required for new APK upload',
+      });
+    }
+
+    const result = await streamUpload(req.file.buffer, loaderType);
+
+    const newApk = new Apk({
+      loaderType,
+      name,
+      key,
+      expiresAt,
+      telegramLink: telegramLink || '',
+      fileUrl: result.secure_url,
+    });
+
+    await newApk.save();
+    return res.status(201).json({ message: 'APK uploaded successfully', apk: newApk });
 
   } catch (err) {
     console.error(err);
@@ -68,11 +75,13 @@ exports.uploadApk = async (req, res) => {
   }
 };
 
-// ✅ Get latest uploaded APK
+// ✅ Get all latest APKs (sorted by newest)
 exports.getLatestApk = async (req, res) => {
   try {
     const apk = await Apk.find().sort({ createdAt: -1 });
-    if (!apk) return res.status(404).json({ message: 'No APK found' });
+    if (!apk || apk.length === 0) {
+      return res.status(404).json({ message: 'No APK found' });
+    }
     res.status(200).json(apk);
   } catch (err) {
     res.status(500).json({ error: err.message });
