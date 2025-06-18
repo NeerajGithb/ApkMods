@@ -4,18 +4,31 @@ const apkSchema = new mongoose.Schema({
   loaderType: {
     type: String,
     required: true,
-    unique: true
+    unique: true // This ensures each loaderType can have only one APK entry
   },
   name: {
-    type:String,
-    required: false,
+    type: String,
+    required: false, // optional for partial updates
+    default: ""
   },
-  key: String,
-  fileUrl: String,
-  expiresAt: Date,
+  key: {
+    type: String,
+    required: false,
+    default: ""
+  },
+  fileUrl: {
+    type: String,
+    required: false,
+    default: ""
+  },
+  expiresAt: {
+    type: Date,
+    required: false
+  },
   telegramLink: {
     type: String,
     required: false,
+    default: ""
   }
 }, { timestamps: true });
 
